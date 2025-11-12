@@ -1,138 +1,153 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 )
 
-func main() {
-	fmt.Println("Выберите операцию:")
-	fmt.Println("1. Сложение матриц")
-	fmt.Println("2. Вычитание матриц")
-	fmt.Println("3. Умножение матрицы на скаляр")
-	fmt.Println("4. Умножение двух матриц")
+type StudentInfo struct {
+	FullName string
+	Grades   []int
+	AvgGrade float64
+}
 
-	var userChoice int
-	fmt.Print("Ваш выбор: ")
-	fmt.Scan(&userChoice)
-
-	switch userChoice {
-	case 1:
-		executeMatrixOperation(addMatrices, "сложения")
-	case 2:
-		executeMatrixOperation(subtractMatrices, "вычитания")
-	case 3:
-		multiplyByScalar()
-	case 4:
-		multiplyMatrices()
-	default:
-		fmt.Println("Неверный ввод. Пожалуйста, выберите число от 1 до 4.")
+func (s *StudentInfo) calculateAverage() {
+	if len(s.Grades) == 0 {
+		s.AvgGrade = 0.0
+		return
 	}
-}
-
-func readMatrix(label string) [][]float64 {
-	var rows, cols int
-	if label != "" {
-		fmt.Printf("Введите размерность матрицы %s (строки столбцы): ", label)
-	} else {
-		fmt.Print("Введите размерность матрицы (строки столбцы): ")
+	sum := 0
+	for _, grade := range s.Grades {
+		sum += grade
 	}
-	fmt.Scan(&rows, &cols)
-
-	matrix := make([][]float64, rows)
-	fmt.Println("Введите элементы матрицы построчно (через пробел):")
-	for i := 0; i < rows; i++ {
-		matrix[i] = make([]float64, cols)
-		for j := 0; j < cols; j++ {
-			fmt.Scan(&matrix[i][j])
-		}
-	}
-	return matrix
+	s.AvgGrade = float64(sum) / float64(len(s.Grades))
 }
 
-func printMatrix(matrix [][]float64) {
-	for _, row := range matrix {
-		for _, val := range row {
-			fmt.Printf("%.2f\t", val)
-		}
-		fmt.Println()
-	}
-}
+func addStudent(students map[string]StudentInfo, reader *bufio.Reader) {
+	fmt.Print("Введите фамилию и имя студента: ")
+	fullName, _ := reader.ReadString('\n')
+	fullName = strings.TrimSpace(fullName)
 
-func addMatrices(a, b [][]float64) [][]float64 {
-	return elementWiseOperation(a, b, func(x, y float64) float64 { return x + y })
-}
-
-func subtractMatrices(a, b [][]float64) [][]float64 {
-	return elementWiseOperation(a, b, func(x, y float64) float64 { return x - y })
-}
-
-func elementWiseOperation(a, b [][]float64, op func(float64, float64) float64) [][]float64 {
-	rows := len(a)
-	cols := len(a[0])
-	result := make([][]float64, rows)
-	for i := 0; i < rows; i++ {
-		result[i] = make([]float64, cols)
-		for j := 0; j < cols; j++ {
-			result[i][j] = op(a[i][j], b[i][j])
-		}
-	}
-	return result
-}
-
-func multiplyByScalar() {
-	matrix := readMatrix("")
-	var scalar float64
-	fmt.Print("Введите скаляр для умножения: ")
-	fmt.Scan(&scalar)
-
-	result := make([][]float64, len(matrix))
-	for i := range matrix {
-		result[i] = make([]float64, len(matrix[i]))
-		for j := range matrix[i] {
-			result[i][j] = matrix[i][j] * scalar
-		}
-	}
-
-	fmt.Println("Результат умножения матрицы на скаляр:")
-	printMatrix(result)
-}
-
-func multiplyMatrices() {
-	a := readMatrix("A")
-	b := readMatrix("B")
-
-	if len(a[0]) != len(b) {
-		fmt.Println("Ошибка: количество столбцов матрицы A должно совпадать с количеством строк матрицы B")
+	if _, exists := students[fullName]; exists {
+		fmt.Println("Студент с таким ФИО уже существует.")
 		return
 	}
 
-	result := make([][]float64, len(a))
-	for i := range result {
-		result[i] = make([]float64, len(b[0]))
-		for j := range result[i] {
-			for k := 0; k < len(b); k++ {
-				result[i][j] += a[i][k] * b[k][j]
+	var grades []int
+	fmt.Println("Введите оценки студента через пробел. Нажмите Enter еще раз для завершения.")
+	for {
+		fmt.Print("> ")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+
+		if input == "" {
+			if len(grades) == 0 {
+				fmt.Println("Оценки не были введены. Введите оценки или нажмите Enter еще раз для пропуска.")
+				continue
 			}
+			break
+		}
+
+		gradesStrSlice := strings.Fields(input)
+		for _, gradeStr := range gradesStrSlice {
+			grade, err := strconv.Atoi(gradeStr)
+			if err != nil {
+				fmt.Printf("Некорректный ввод оценки '%s'. Пожалуйста, вводите только числа.\n", gradeStr)
+				continue
+			}
+			if grade < 1 || grade > 5 {
+				fmt.Printf("Оценка %d вне допустимого диапазона (1-5)\n", grade)
+				continue
+			}
+			grades = append(grades, grade)
 		}
 	}
 
-	fmt.Println("Результат умножения матриц:")
-	printMatrix(result)
+	student := StudentInfo{
+		FullName: fullName,
+		Grades:   grades,
+	}
+	student.calculateAverage()
+
+	students[fullName] = student
+	fmt.Println("Студент", fullName, "успешно добавлен!")
 }
 
-type matrixOperation func([][]float64, [][]float64) [][]float64
-
-func executeMatrixOperation(op matrixOperation, operationName string) {
-	fmt.Printf("Введите матрицы для операции %s\n", operationName)
-	a := readMatrix("A")
-	b := readMatrix("B")
-
-	if len(a) != len(b) || len(a[0]) != len(b[0]) {
-		fmt.Println("Ошибка: матрицы должны иметь одинаковую размерность")
-		return
+func filterStudentsByAvg(students map[string]StudentInfo, threshold float64) []StudentInfo {
+	filteredStudents := []StudentInfo{}
+	for _, student := range students {
+		if student.AvgGrade < threshold {
+			filteredStudents = append(filteredStudents, student)
+		}
 	}
+	return filteredStudents
+}
 
-	result := op(a, b)
-	fmt.Printf("Результат %s:\n", operationName)
-	printMatrix(result)
+func printStudentInfo(student StudentInfo) {
+	fmt.Printf("  ФИО: %s, Оценки: %v, Средний балл: %.2f\n", student.FullName, student.Grades, student.AvgGrade)
+}
+
+func printAllStudents(students map[string]StudentInfo) {
+	fmt.Println("Список всех студентов:")
+	for _, student := range students {
+		printStudentInfo(student)
+	}
+}
+
+func main() {
+	students := make(map[string]StudentInfo)
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("Добро пожаловать в журнал!")
+
+	for {
+		fmt.Print("\nВведите команду (help - для вывода всех команд): ")
+		command, _ := reader.ReadString('\n')
+		command = strings.TrimSpace(command)
+
+		switch command {
+		case "add":
+			addStudent(students, reader)
+		case "list":
+			if len(students) > 0 {
+				printAllStudents(students)
+			} else {
+				fmt.Println("В базе данных пока нет студентов.")
+			}
+		case "filter":
+			fmt.Print("Введите максимальный средний балл: ")
+			thresholdStr, _ := reader.ReadString('\n')
+			thresholdStr = strings.TrimSpace(thresholdStr)
+			threshold, err := strconv.ParseFloat(thresholdStr, 64)
+			if err != nil {
+				fmt.Println("Некорректный ввод среднего балла. Пожалуйста, введите число.")
+				continue
+			}
+
+			filteredStudents := filterStudentsByAvg(students, threshold)
+			if len(filteredStudents) > 0 {
+				fmt.Println("Студенты с средним баллом ниже", threshold)
+				for _, student := range filteredStudents {
+					printStudentInfo(student)
+				}
+			} else {
+				fmt.Println("Нет студентов с средним баллом ниже", threshold)
+			}
+		case "help":
+			fmt.Println("Доступные команды:")
+			fmt.Println("  add - Добавить студента")
+			fmt.Println("  list - Вывести список всех студентов")
+			fmt.Println("  filter - Вывести студентов с средним баллом ниже указанного")
+			fmt.Println("  help - Вывести список команд")
+			fmt.Println("  exit - Выйти из программы")
+		case "exit":
+			fmt.Println("Выход из программы.")
+			return
+		default:
+			fmt.Println("Неизвестная команда. Введите 'help' для списка команд.")
+		}
+	}
 }
